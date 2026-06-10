@@ -1,0 +1,14 @@
+# Automatisches HTTPS via Let's Encrypt.
+# {$N8N_HOST} und {$ACME_EMAIL} kommen aus der .env (über docker-compose).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$N8N_HOST} {
+	# n8n läuft intern im Docker-Netz auf Port 5678 (kein eigenes TLS).
+	reverse_proxy n8n:5678 {
+		# Wichtig für n8n Live-Updates (SSE/Push) im Editor.
+		flush_interval -1
+	}
+}

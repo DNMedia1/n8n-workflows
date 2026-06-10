@@ -1,0 +1,61 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: vapi-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+    depends_on:
+      - n8n
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: vapi-n8n
+    restart: unless-stopped
+    expose:
+      - "5678"
+    environment:
+      # --- Öffentliche Adresse / Reverse-Proxy ---
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://${N8N_HOST}/
+      - N8N_EDITOR_BASE_URL=https://${N8N_HOST}/
+      - N8N_PROXY_HOPS=1
+      # --- Zeitzone ---
+      - GENERIC_TIMEZONE=Europe/Berlin
+      - TZ=Europe/Berlin
+      # --- Verhalten ---
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      # Erlaubt $env.* in Code-/HTTP-Nodes (für Slack-URL & OpenRouter-Key)
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      # --- Secrets (aus .env) ---
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - SLACK_STEINOFENBOT_WEBHOOK_URL=${SLACK_STEINOFENBOT_WEBHOOK_URL:-}
+      - SLACK_ORDERS_WEBHOOK_URL=${SLACK_ORDERS_WEBHOOK_URL:-${SLACK_WEBHOOK_URL}}
+      - SLACK_ORDERS_CHANNEL=${SLACK_ORDERS_CHANNEL:-#test-channel-steinofen-bot}
+      - MENU_PDF_URL=${MENU_PDF_URL:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-${OPENAI_API_KEY:-}}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - web
+
+networks:
+  web:
+
+volumes:
+  n8n_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,318 @@
+{
+  "name": "Lieferdienst Demo DB Setup",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Lieferdienst Demo-Datenbank\\n\\nDieser Workflow legt zwei n8n Data Tables an:\\n- lieferdienst_speisekarte\\n- lieferdienst_bestellungen\\n\\nDanach wird die Demo-Speisekarte per Upsert befuellt.\\nBitte einmal manuell ausfuehren, bevor der Telegram-Workflow aktiv geschaltet wird.",
+        "height": 300,
+        "width": 520
+      },
+      "id": "sticky-setup",
+      "name": "Setup Hinweis",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        20
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "manual-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "lieferdienst_speisekarte",
+        "columns": {
+          "column": [
+            {
+              "name": "artikel_id",
+              "type": "string"
+            },
+            {
+              "name": "kategorie",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "beschreibung",
+              "type": "string"
+            },
+            {
+              "name": "preis_eur",
+              "type": "number"
+            },
+            {
+              "name": "vorbereitung_min",
+              "type": "number"
+            },
+            {
+              "name": "verfuegbar",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "table-menu",
+      "name": "Speisekarte Tabelle anlegen",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "lieferdienst_bestellungen",
+        "columns": {
+          "column": [
+            {
+              "name": "bestell_id",
+              "type": "string"
+            },
+            {
+              "name": "chat_id",
+              "type": "string"
+            },
+            {
+              "name": "kunde_name",
+              "type": "string"
+            },
+            {
+              "name": "adresse",
+              "type": "string"
+            },
+            {
+              "name": "artikel_text",
+              "type": "string"
+            },
+            {
+              "name": "gesamtpreis_eur",
+              "type": "number"
+            },
+            {
+              "name": "entfernung_km",
+              "type": "number"
+            },
+            {
+              "name": "wartezeit_min",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "type": "string"
+            },
+            {
+              "name": "created_at",
+              "type": "date"
+            },
+            {
+              "name": "raw_text",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "table-orders",
+      "name": "Bestellungen Tabelle anlegen",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        740,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const menu = [\n  {\n    \"artikel_id\": \"PIZZA_MARGHERITA\",\n    \"kategorie\": \"Pizza\",\n    \"name\": \"Pizza Margherita\",\n    \"beschreibung\": \"Tomatensauce, Mozzarella, Basilikum\",\n    \"preis_eur\": 8.9,\n    \"vorbereitung_min\": 14,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PIZZA_SALAMI\",\n    \"kategorie\": \"Pizza\",\n    \"name\": \"Pizza Salami\",\n    \"beschreibung\": \"Tomatensauce, Mozzarella, Salami\",\n    \"preis_eur\": 10.9,\n    \"vorbereitung_min\": 16,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PIZZA_FUNGHI\",\n    \"kategorie\": \"Pizza\",\n    \"name\": \"Pizza Funghi\",\n    \"beschreibung\": \"Tomatensauce, Mozzarella, Champignons\",\n    \"preis_eur\": 10.5,\n    \"vorbereitung_min\": 16,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PIZZA_DIAVOLO\",\n    \"kategorie\": \"Pizza\",\n    \"name\": \"Pizza Diavolo\",\n    \"beschreibung\": \"Tomatensauce, Mozzarella, scharfe Salami, Peperoni\",\n    \"preis_eur\": 12.5,\n    \"vorbereitung_min\": 18,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PASTA_NAPOLI\",\n    \"kategorie\": \"Pasta\",\n    \"name\": \"Pasta Napoli\",\n    \"beschreibung\": \"Penne mit Tomatensauce und Basilikum, vegetarisch, enthaelt Gluten\",\n    \"preis_eur\": 8.7,\n    \"vorbereitung_min\": 13,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PASTA_CARBONARA\",\n    \"kategorie\": \"Pasta\",\n    \"name\": \"Pasta Carbonara\",\n    \"beschreibung\": \"Penne mit Sahnesauce, Speck und Parmesan, enthaelt Gluten\",\n    \"preis_eur\": 10.8,\n    \"vorbereitung_min\": 15,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PASTA_ARRABBIATA_VEGAN\",\n    \"kategorie\": \"Pasta\",\n    \"name\": \"Pasta Arrabbiata Vegan\",\n    \"beschreibung\": \"Penne mit scharfer Tomatensauce, Knoblauch und Chili, vegan, enthaelt Gluten\",\n    \"preis_eur\": 9.6,\n    \"vorbereitung_min\": 14,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PASTA_PESTO_VERDE\",\n    \"kategorie\": \"Pasta\",\n    \"name\": \"Pasta Pesto Verde\",\n    \"beschreibung\": \"Spaghetti mit Basilikum-Pesto, vegetarisch, enthaelt Gluten\",\n    \"preis_eur\": 10.4,\n    \"vorbereitung_min\": 14,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PASTA_GLUTENFREI_POMODORO\",\n    \"kategorie\": \"Pasta\",\n    \"name\": \"Glutenfreie Pasta Pomodoro\",\n    \"beschreibung\": \"Glutenfreie Penne mit Tomatensauce und Basilikum, glutenfrei, vegan\",\n    \"preis_eur\": 11.2,\n    \"vorbereitung_min\": 16,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"PIZZA_VERDURA_VEGAN\",\n    \"kategorie\": \"Pizza\",\n    \"name\": \"Pizza Verdura Vegan\",\n    \"beschreibung\": \"Tomatensauce, Zucchini, Paprika, Champignons, veganer Kaese, vegan\",\n    \"preis_eur\": 12.9,\n    \"vorbereitung_min\": 18,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"BURGER_CLASSIC\",\n    \"kategorie\": \"Burger\",\n    \"name\": \"Classic Burger\",\n    \"beschreibung\": \"Rindfleisch, Salat, Tomate, Gurke, Burgersauce\",\n    \"preis_eur\": 11.9,\n    \"vorbereitung_min\": 17,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"BURGER_CHICKEN\",\n    \"kategorie\": \"Burger\",\n    \"name\": \"Chicken Burger\",\n    \"beschreibung\": \"Knuspriges Haehnchen, Salat, Tomate, Mayo\",\n    \"preis_eur\": 10.9,\n    \"vorbereitung_min\": 16,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"SALAT_CHICKEN\",\n    \"kategorie\": \"Salat\",\n    \"name\": \"Chicken Salat\",\n    \"beschreibung\": \"Blattsalat, Haehnchenstreifen, Tomate, Gurke, Dressing\",\n    \"preis_eur\": 9.8,\n    \"vorbereitung_min\": 10,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"BEILAGE_POMMES\",\n    \"kategorie\": \"Beilage\",\n    \"name\": \"Pommes Frites\",\n    \"beschreibung\": \"Portion Pommes mit Dip\",\n    \"preis_eur\": 4.2,\n    \"vorbereitung_min\": 8,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"DRINK_COLA\",\n    \"kategorie\": \"Getraenk\",\n    \"name\": \"Cola 0,5l\",\n    \"beschreibung\": \"Kalte Cola, 0,5 Liter\",\n    \"preis_eur\": 2.9,\n    \"vorbereitung_min\": 1,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"DRINK_WASSER\",\n    \"kategorie\": \"Getraenk\",\n    \"name\": \"Mineralwasser 0,5l\",\n    \"beschreibung\": \"Mineralwasser, 0,5 Liter\",\n    \"preis_eur\": 2.5,\n    \"vorbereitung_min\": 1,\n    \"verfuegbar\": true\n  },\n  {\n    \"artikel_id\": \"DESSERT_TIRAMISU\",\n    \"kategorie\": \"Dessert\",\n    \"name\": \"Tiramisu\",\n    \"beschreibung\": \"Hausgemachtes Tiramisu im Becher\",\n    \"preis_eur\": 5.2,\n    \"vorbereitung_min\": 2,\n    \"verfuegbar\": true\n  }\n];\nreturn menu.map((item) => ({ json: item }));"
+      },
+      "id": "code-menu",
+      "name": "Demo Speisekarte erzeugen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "lieferdienst_speisekarte",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "artikel_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.artikel_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null,
+          "schema": [
+            {
+              "id": "artikel_id",
+              "displayName": "artikel_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "kategorie",
+              "displayName": "kategorie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "beschreibung",
+              "displayName": "beschreibung",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "preis_eur",
+              "displayName": "preis_eur",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vorbereitung_min",
+              "displayName": "vorbereitung_min",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "verfuegbar",
+              "displayName": "verfuegbar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "upsert-menu",
+      "name": "Speisekarte upserten",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Speisekarte Tabelle anlegen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Speisekarte Tabelle anlegen": {
+      "main": [
+        [
+          {
+            "node": "Bestellungen Tabelle anlegen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bestellungen Tabelle anlegen": {
+      "main": [
+        [
+          {
+            "node": "Demo Speisekarte erzeugen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demo Speisekarte erzeugen": {
+      "main": [
+        [
+          {
+            "node": "Speisekarte upserten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "lieferdienst-demo-db-setup-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "LieferdienstDemoDbSetup",
+  "tags": []
+}

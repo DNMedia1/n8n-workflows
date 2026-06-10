@@ -1,0 +1,11 @@
+.env
+*.log
+node_modules/
+secrets/
+backups/
+.snapshots/
+.DS_Store
+.claude/
+
+# Aufgeraeumtes Archiv (manuell loeschbar)
+_archiv_20260609/

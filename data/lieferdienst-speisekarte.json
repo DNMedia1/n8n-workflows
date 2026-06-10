@@ -1,0 +1,402 @@
+{
+  "name": "Steinofen Pizzeria Karlsruhe - Speisekarte",
+  "note": "Aus dem oeffentlichen PDF kuratiert. Beschreibungen Deutsch, tuerkische Namen beibehalten. Preise teils Demo-Schaetzwerte.",
+  "items": [
+    {
+      "artikel_id": "PIZZA_MARGHERITA",
+      "kategorie": "Pizza",
+      "name": "Pizza Margherita",
+      "beschreibung": "Tomatensauce, Mozzarella, Basilikum",
+      "preis_eur": 7.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_SALAMI",
+      "kategorie": "Pizza",
+      "name": "Pizza Salami",
+      "beschreibung": "Tomatensauce, Mozzarella, Salami",
+      "preis_eur": 8.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_PROSCIUTTO",
+      "kategorie": "Pizza",
+      "name": "Pizza Prosciutto",
+      "beschreibung": "Tomatensauce, Mozzarella, Schinken",
+      "preis_eur": 8.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_FUNGHI",
+      "kategorie": "Pizza",
+      "name": "Pizza Funghi",
+      "beschreibung": "Tomatensauce, Mozzarella, Champignons",
+      "preis_eur": 8.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_HAWAII",
+      "kategorie": "Pizza",
+      "name": "Pizza Hawaii",
+      "beschreibung": "Tomatensauce, Mozzarella, Schinken, Ananas",
+      "preis_eur": 9,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_CAPRICCIOSA",
+      "kategorie": "Pizza",
+      "name": "Pizza Capricciosa",
+      "beschreibung": "Tomatensauce, Mozzarella, Schinken, Champignons, Artischocken",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_FRUTTI_DI_MARE",
+      "kategorie": "Pizza",
+      "name": "Pizza Frutti di Mare",
+      "beschreibung": "Tomatensauce, Mozzarella, Meeresfruechte, Knoblauch",
+      "preis_eur": 10.5,
+      "vorbereitung_min": 18,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_QUATTRO_FORMAGGI",
+      "kategorie": "Pizza",
+      "name": "Pizza Quattro Formaggi",
+      "beschreibung": "Tomatensauce, vier Kaesesorten (Edamer, Schafskaese, Mozzarella, Gorgonzola)",
+      "preis_eur": 9.9,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_VEGETARIA",
+      "kategorie": "Pizza",
+      "name": "Pizza Vegetaria",
+      "beschreibung": "Tomatensauce, Mozzarella, frisches Gemuese, vegetarisch",
+      "preis_eur": 9,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_SUCUK",
+      "kategorie": "Pizza",
+      "name": "Pizza Sucuk",
+      "beschreibung": "Tomatensauce, Mozzarella, tuerkische Knoblauchwurst (Sucuk)",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZA_DIAVOLO",
+      "kategorie": "Pizza",
+      "name": "Pizza Diavolo",
+      "beschreibung": "Tomatensauce, Mozzarella, scharfe Salami, Peperoni",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "CALZONE",
+      "kategorie": "Calzone",
+      "name": "Calzone",
+      "beschreibung": "Gefuellte Pizza mit Schinken, Champignons und Kaese",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PASTA_NAPOLETANA",
+      "kategorie": "Pasta",
+      "name": "Pasta Napoletana",
+      "beschreibung": "Rigatoni oder Spaghetti mit Tomatensauce, vegetarisch",
+      "preis_eur": 6,
+      "vorbereitung_min": 13,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PASTA_BOLOGNESE",
+      "kategorie": "Pasta",
+      "name": "Pasta Bolognese",
+      "beschreibung": "Rigatoni oder Spaghetti mit Hackfleisch-Tomatensauce",
+      "preis_eur": 7,
+      "vorbereitung_min": 14,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PASTA_CARBONARA",
+      "kategorie": "Pasta",
+      "name": "Pasta Carbonara",
+      "beschreibung": "Rigatoni oder Spaghetti mit Schinken und Sahnesauce",
+      "preis_eur": 7,
+      "vorbereitung_min": 14,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PASTA_SAHNE",
+      "kategorie": "Pasta",
+      "name": "Pasta Sahne",
+      "beschreibung": "Rigatoni oder Spaghetti mit Sahnesauce",
+      "preis_eur": 6,
+      "vorbereitung_min": 13,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PASTA_MARE",
+      "kategorie": "Pasta",
+      "name": "Pasta Mare",
+      "beschreibung": "Rigatoni oder Spaghetti mit Meeresfruechten und Tomatensauce",
+      "preis_eur": 8,
+      "vorbereitung_min": 15,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PASTA_TONNO",
+      "kategorie": "Pasta",
+      "name": "Pasta Tonno",
+      "beschreibung": "Rigatoni oder Spaghetti mit Sahnesauce und Thunfisch",
+      "preis_eur": 8,
+      "vorbereitung_min": 15,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "GNOCCHI_GORGONZOLA",
+      "kategorie": "Gnocchi",
+      "name": "Gnocchi Gorgonzola",
+      "beschreibung": "Gnocchi mit Gorgonzola-Sahnesauce",
+      "preis_eur": 8,
+      "vorbereitung_min": 14,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "GNOCCHI_BOLOGNESE",
+      "kategorie": "Gnocchi",
+      "name": "Gnocchi Bolognese",
+      "beschreibung": "Gnocchi mit Hackfleisch-Tomatensauce",
+      "preis_eur": 8,
+      "vorbereitung_min": 14,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "LASAGNE",
+      "kategorie": "Lasagne",
+      "name": "Lasagne",
+      "beschreibung": "Hausgemachte Lasagne mit Hackfleisch und Bechamel",
+      "preis_eur": 8,
+      "vorbereitung_min": 18,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "LASAGNE_SPINAT",
+      "kategorie": "Lasagne",
+      "name": "Lasagne mit Spinat",
+      "beschreibung": "Lasagne mit Spinat und Sahnesauce, vegetarisch",
+      "preis_eur": 8,
+      "vorbereitung_min": 18,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "RIGATONI_AL_FORNO",
+      "kategorie": "Lasagne",
+      "name": "Rigatoni al Forno",
+      "beschreibung": "Ueberbackene Rigatoni mit Sahne-Hackfleisch",
+      "preis_eur": 7,
+      "vorbereitung_min": 17,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIDE_KAESE",
+      "kategorie": "Pide",
+      "name": "Pide mit Kaese",
+      "beschreibung": "Tuerkisches Fladenbrot mit Kaese ueberbacken",
+      "preis_eur": 8.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIDE_SUCUK_EI",
+      "kategorie": "Pide",
+      "name": "Pide mit Sucuk und Ei",
+      "beschreibung": "Tuerkisches Fladenbrot mit Sucuk und Ei",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIDE_HACKFLEISCH",
+      "kategorie": "Pide",
+      "name": "Pide mit Hackfleisch",
+      "beschreibung": "Fladenbrot mit gehacktem Rindfleisch, Peperoni und Paprika",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIDE_SPINAT_SCHAFSKAESE",
+      "kategorie": "Pide",
+      "name": "Pide mit Spinat und Schafskaese",
+      "beschreibung": "Fladenbrot mit Spinat, Kaese und Schafskaese",
+      "preis_eur": 9.5,
+      "vorbereitung_min": 16,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DONER_FLADENBROT",
+      "kategorie": "Doener",
+      "name": "Doener im Fladenbrot",
+      "beschreibung": "Doenerfleisch im Fladenbrot mit Salat und Sauce",
+      "preis_eur": 6.5,
+      "vorbereitung_min": 10,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DONER_BOX",
+      "kategorie": "Doener",
+      "name": "Doener Box",
+      "beschreibung": "Doenerfleisch mit Pommes in der Box",
+      "preis_eur": 8,
+      "vorbereitung_min": 10,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DONER_TELLER",
+      "kategorie": "Doener",
+      "name": "Doener Teller",
+      "beschreibung": "Doenerfleisch mit Reis oder Pommes und Salat",
+      "preis_eur": 10.5,
+      "vorbereitung_min": 12,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "ISKENDER_TELLER",
+      "kategorie": "Doener",
+      "name": "Iskender Teller",
+      "beschreibung": "Iskender mit geroesteten Brotstuecken, Tomatensauce und Joghurt",
+      "preis_eur": 12.5,
+      "vorbereitung_min": 14,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DONER_VEGETARISCH",
+      "kategorie": "Doener",
+      "name": "Vegetarischer Doener im Fladenbrot",
+      "beschreibung": "Fladenbrot mit Gemuese, Salat und Sauce, vegetarisch",
+      "preis_eur": 6.5,
+      "vorbereitung_min": 10,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "SALAT_GEMISCHT",
+      "kategorie": "Salat",
+      "name": "Gemischter Salat",
+      "beschreibung": "Blattsalat, Tomaten, Gurken, Zwiebeln",
+      "preis_eur": 5,
+      "vorbereitung_min": 8,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "SALAT_COBAN",
+      "kategorie": "Salat",
+      "name": "Coban Salat",
+      "beschreibung": "Tuerkischer Hirtensalat mit Tomaten, Gurken, Zwiebeln und Schafskaese",
+      "preis_eur": 6,
+      "vorbereitung_min": 8,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "SALAT_GRIECHISCH",
+      "kategorie": "Salat",
+      "name": "Griechischer Salat",
+      "beschreibung": "Tomaten, Gurken, Schafskaese, Peperoni, Oliven",
+      "preis_eur": 7,
+      "vorbereitung_min": 9,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "SALAT_THUNFISCH",
+      "kategorie": "Salat",
+      "name": "Thunfischsalat (Nizza)",
+      "beschreibung": "Gemischter Salat mit Thunfisch, Ei und Oliven",
+      "preis_eur": 7,
+      "vorbereitung_min": 9,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "SALAT_DONER",
+      "kategorie": "Salat",
+      "name": "Doener Salat",
+      "beschreibung": "Gemischter Salat mit Doenerfleisch und Schafskaese",
+      "preis_eur": 7.5,
+      "vorbereitung_min": 10,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "VORSPEISE_TOMATE_MOZZARELLA",
+      "kategorie": "Vorspeise",
+      "name": "Tomate-Mozzarella",
+      "beschreibung": "Frische Tomaten mit Mozzarella und Basilikum",
+      "preis_eur": 6,
+      "vorbereitung_min": 8,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "PIZZABROT",
+      "kategorie": "Vorspeise",
+      "name": "Pizzabrot",
+      "beschreibung": "Ofenfrisches Pizzabrot mit Kaese oder Tomatensauce",
+      "preis_eur": 4.5,
+      "vorbereitung_min": 10,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "BEILAGE_POMMES",
+      "kategorie": "Beilage",
+      "name": "Pommes Frites",
+      "beschreibung": "Portion Pommes mit Dip",
+      "preis_eur": 4,
+      "vorbereitung_min": 8,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DRINK_COLA",
+      "kategorie": "Getraenk",
+      "name": "Cola 0,5l",
+      "beschreibung": "Kalte Cola, 0,5 Liter",
+      "preis_eur": 2.9,
+      "vorbereitung_min": 1,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DRINK_AYRAN",
+      "kategorie": "Getraenk",
+      "name": "Ayran",
+      "beschreibung": "Tuerkisches Joghurtgetraenk, 0,25 Liter",
+      "preis_eur": 2.2,
+      "vorbereitung_min": 1,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DRINK_WASSER",
+      "kategorie": "Getraenk",
+      "name": "Mineralwasser 0,5l",
+      "beschreibung": "Mineralwasser, 0,5 Liter",
+      "preis_eur": 2.5,
+      "vorbereitung_min": 1,
+      "verfuegbar": true
+    },
+    {
+      "artikel_id": "DESSERT_TIRAMISU",
+      "kategorie": "Dessert",
+      "name": "Tiramisu",
+      "beschreibung": "Hausgemachtes Tiramisu",
+      "preis_eur": 5,
+      "vorbereitung_min": 2,
+      "verfuegbar": true
+    }
+  ]
+}

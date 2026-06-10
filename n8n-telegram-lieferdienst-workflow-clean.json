@@ -1,0 +1,858 @@
+{
+  "name": "Telegram Lieferdienst Bestellung Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Steinofen Bot - sauberer Kern\\n\\n1. Telegram/Voice wird zu Text normalisiert.\\n2. Der Bestellkern liest Speisekarte + offene Bestellungen.\\n3. Antwort, DB-Speicherung, Slack und PDF laufen als klare Ausgaenge.\\n\\nEnv:\\n- OPENROUTER_API_KEY\\n- SLACK_STEINOFENBOT_WEBHOOK_URL fuer #test-channel-steinofen-bot\\n- MENU_PDF_URL optional",
+        "height": 280,
+        "width": 420
+      },
+      "id": "workflow-note",
+      "name": "Workflow Hinweis",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        120,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        120,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $json;\nconst message = update.message ?? update.edited_message ?? {};\nconst chat = message.chat ?? {};\nconst from = message.from ?? {};\nconst voiceFileId = message.voice?.file_id ?? message.audio?.file_id ?? '';\nconst text = message.text ?? message.caption ?? '';\n\nreturn [{\n  json: {\n    source: 'telegram',\n    reply_mode: 'telegram',\n    chat_id: String(chat.id ?? ''),\n    customer_first_name: from.first_name ?? '',\n    customer_last_name: from.last_name ?? '',\n    username: from.username ?? '',\n    message_text: String(text || '').trim(),\n    voice_file_id: voiceFileId,\n    has_voice: Boolean(voiceFileId)\n  }\n}];"
+      },
+      "id": "normalize-telegram",
+      "name": "Telegram Nachricht normalisieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-voice-condition",
+              "leftValue": "={{ String($json.has_voice) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-voice",
+      "name": "Voice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.voice_file_id }}",
+        "download": true,
+        "additionalFields": {
+          "mimeType": "audio/ogg"
+        }
+      },
+      "id": "telegram-file",
+      "name": "Telegram Voice laden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Telegram Nachricht normalisieren').first().json;\nconst item = $input.first();\nconst bin = item.binary?.data;\nif (!bin) throw new Error('Voice-Datei fehlt: keine Binary-Property \"data\" vorhanden.');\n\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst mimeType = bin.mimeType || 'audio/ogg';\nconst fileName = bin.fileName || '';\nconst format =\n  mimeType.includes('webm') || fileName.endsWith('.webm') ? 'webm' :\n  mimeType.includes('mpeg') || mimeType.includes('mp3') || fileName.endsWith('.mp3') ? 'mp3' :\n  mimeType.includes('wav') || fileName.endsWith('.wav') ? 'wav' :\n  mimeType.includes('flac') || fileName.endsWith('.flac') ? 'flac' :\n  mimeType.includes('mp4') || fileName.endsWith('.mp4') ? 'mp4' :\n  'ogg';\n\nreturn [{\n  json: {\n    ...ctx,\n    voice_audio: { data: buffer.toString('base64'), format }\n  }\n}];"
+      },
+      "id": "voice-base64",
+      "name": "Voice Audio vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/audio/transcriptions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENROUTER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://your-domain.de"
+            },
+            {
+              "name": "X-Title",
+              "value": "Steinofen Telegram Bot"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"openai/whisper-1\", \"input_audio\": $json.voice_audio } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "openrouter-transcription",
+      "name": "OpenRouter Voice transkribieren",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1420,
+        260
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Voice Audio vorbereiten').first().json;\nconst transcript = $json.text ?? $json.transcript ?? $json.data?.text ?? '';\n\nreturn [{\n  json: {\n    ...ctx,\n    input_type: 'voice',\n    transcription: String(transcript || '').trim(),\n    order_text: String(transcript || '').trim()\n  }\n}];"
+      },
+      "id": "voice-text",
+      "name": "Voice als Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Telegram Nachricht normalisieren').first().json.chat_id }}",
+        "text": "Entschuldigung, ich konnte deine Sprachnachricht gerade nicht verarbeiten. Bitte sende deine Bestellung kurz als Text.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "voice-error-reply",
+      "name": "Sprachfehler Antwort",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ...$json,\n    input_type: 'text',\n    order_text: String($json.message_text || '').trim()\n  }\n}];"
+      },
+      "id": "text-adapter",
+      "name": "Text als Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "merge-message",
+      "name": "Nachricht vereinheitlichen",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1940,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "lieferdienst_speisekarte",
+          "mode": "name"
+        },
+        "returnAll": true
+      },
+      "id": "menu-get",
+      "name": "Speisekarte laden",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "lieferdienst_bestellungen",
+          "mode": "name"
+        },
+        "returnAll": true
+      },
+      "id": "orders-get",
+      "name": "Bestellungen laden",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2460,
+        420
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Nachricht vereinheitlichen').first().json;\nconst menu = $('Speisekarte laden').all()\n  .map((item) => item.json)\n  .filter((item) => item && item.artikel_id);\nconst orders = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row && row.bestell_id);\n\nconst openOrders = orders.filter((row) => String(row.status || '').toLowerCase() === 'offen');\nconst pendingOrder = orders\n  .filter((row) => String(row.chat_id || '') === String(ctx.chat_id || ''))\n  .filter((row) => String(row.status || '').toLowerCase() === 'unvollstaendig')\n  .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0] || null;\n\nfunction text(value) {\n  return String(value ?? '').trim();\n}\n\nconst menuText = menu.map((item) => {\n  const variantText = text(item.varianten || item.groessen || item.optionen);\n  return [\n    item.artikel_id,\n    item.name,\n    item.kategorie,\n    Number(item.preis_eur).toFixed(2) + ' EUR',\n    'Zubereitung ca. ' + (Number(item.vorbereitung_min) || 12) + ' min',\n    item.verfuegbar ? 'verfuegbar' : 'nicht verfuegbar',\n    text(item.beschreibung),\n    variantText ? 'Varianten: ' + variantText : ''\n  ].filter(Boolean).join(' | ');\n}).join('\\n');\n\nconst pendingText = pendingOrder\n  ? [\n      'Bisherige unvollstaendige Bestellung:',\n      'Bestellnummer: ' + text(pendingOrder.bestell_id),\n      'Artikel: ' + text(pendingOrder.artikel_text),\n      'Adresse: ' + text(pendingOrder.adresse),\n      'Original: ' + text(pendingOrder.raw_text)\n    ].join('\\n')\n  : 'Keine.';\n\nconst systemPrompt = [\n  'Du bist der Bestellassistent eines Lieferdienstes.',\n  'Deine Aufgabe: Kundennachricht als Infofrage oder Bestellung klassifizieren und strukturiert extrahieren.',\n  'Nutze ausschliesslich Artikel aus der Speisekarte und deren artikel_id.',\n  'Erfinde keine Artikel, Preise, Adressen oder Telefonnummern.',\n  'intent = \"info\" nur, wenn der Kunde nur nach Speisekarte, Sortiment, Preisen, Groessen, Lieferung, Oeffnungszeiten oder Allergenen fragt.',\n  'intent = \"order\", sobald der Kunde Essen oder Getraenke bestellen moechte.',\n  'Wenn eine unvollstaendige Bestellung vorhanden ist, fuehre neue Angaben damit zusammen.',\n  'Normalisiere deutsche Ortsnamen und Adressen sorgfaeltig. In der Region Karlsruhe bedeutet Eckstein/Eckenstein/Eckestein meist Eggenstein.',\n  'Normalisiere Leopardshafen/Leopartshafen zu Leopoldshafen und schreibe den Ort als Eggenstein-Leopoldshafen.',\n  'Normalisiere einzeln gesprochene Postleitzahlen wie 7 6 3 4 4 zu 76344.',\n  'Telefonnummer und Kundenname sind optional.',\n  'Wenn Adresse oder Artikel fehlen, schreibe sie in fehlende_infos.',\n  'Antworte nur mit validem JSON ohne Markdown.',\n  '',\n  'JSON-Format:',\n  '{',\n  '  \"intent\": \"order | info\",',\n  '  \"info_topic\": \"speisekarte | preise | groessen | lieferung | allergene | allgemein | leer\",',\n  '  \"antwort\": \"kurz bei info, sonst leer\",',\n  '  \"kunde_name\": \"\",',\n  '  \"telefon\": \"\",',\n  '  \"adresse\": \"\",',\n  '  \"positionen\": [{ \"artikel_id\": \"PIZZA_SALAMI\", \"menge\": 1, \"sonderwunsch\": \"\" }],',\n  '  \"fehlende_infos\": [],',\n  '  \"notizen\": \"\"',\n  '}'\n].join('\\n');\n\nconst userMessage = [\n  'Speisekarte:',\n  menuText,\n  '',\n  'Aktuell offene Bestellungen: ' + openOrders.length,\n  '',\n  pendingText,\n  '',\n  'Kundennachricht:',\n  text(ctx.order_text) || '(leer)'\n].join('\\n');\n\nreturn [{\n  json: {\n    ...ctx,\n    menu,\n    open_orders_count: openOrders.length,\n    pending_order: pendingOrder,\n    system_prompt: systemPrompt,\n    user_message: userMessage\n  }\n}];"
+      },
+      "id": "prompt-build",
+      "name": "Bestellassistent Prompt bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENROUTER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://your-domain.de"
+            },
+            {
+              "name": "X-Title",
+              "value": "Steinofen Telegram Bot"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"meta-llama/llama-3.3-70b-instruct\", \"temperature\": 0.1, \"response_format\": { \"type\": \"json_object\" }, \"messages\": [{ \"role\": \"system\", \"content\": $json.system_prompt }, { \"role\": \"user\", \"content\": $json.user_message }] } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "openrouter-order",
+      "name": "OpenRouter Bestellung verstehen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2980,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Bestellassistent Prompt bauen').first().json;\nconst rawContent = $json?.choices?.[0]?.message?.content ?? '';\n\nfunction text(value) {\n  return String(value ?? '').trim();\n}\n\nfunction parseJson(raw) {\n  try {\n    const clean = String(raw).replace(/^\\`\\`\\`json/i, '').replace(/^\\`\\`\\`/i, '').replace(/\\`\\`\\`$/i, '').trim();\n    return JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));\n  } catch (error) {\n    return {\n      intent: 'info',\n      info_topic: 'allgemein',\n      antwort: 'Ich habe deine Nachricht nicht sicher verstanden. Du kannst nach der Speisekarte fragen oder direkt deine Bestellung mit Lieferadresse senden.',\n      kunde_name: '',\n      telefon: '',\n      adresse: '',\n      positionen: [],\n      fehlende_infos: [],\n      notizen: 'JSON parsing failed: ' + String(error.message || error)\n    };\n  }\n}\n\nconst parsed = parseJson(rawContent);\nconst menu = Array.isArray(ctx.menu) ? ctx.menu : [];\nconst menuById = new Map(menu.map((item) => [text(item.artikel_id).toUpperCase(), item]));\nconst parsedPositions = Array.isArray(parsed.positionen) ? parsed.positionen : [];\nconst hasParsedPositions = parsedPositions.some((position) => text(position.artikel_id));\nconst parsedIntent = text(parsed.intent).toLowerCase();\nconst rawText = text(ctx.order_text).toLowerCase();\n\nfunction looksLikeInfoQuestion() {\n  const hasInfoSignal = /\\?|speisekarte|karte|sortiment|angebot|groess|größe|gross|preis|preise|allergen|gluten|vegan|vegetarisch|liefer|oeffnung|öffnung|habt ihr|gibt es|welche/.test(rawText);\n  const hasOrderSignal = /\\b(bestelle|bestellen|bestellung|nehme|nehmen|nimm|haette gern|hätte gern|haette gerne|hätte gerne|ich will|ich moechte|ich möchte|einmal|zweimal|1x|2x|3x)\\b/.test(rawText);\n  return hasInfoSignal && !hasOrderSignal;\n}\n\nfunction shouldSendMenuPdf(topic) {\n  return /speisekarte|karte|sortiment|angebot|preis|preise|groess|größe|gross/.test(rawText) || /speisekarte|preise|groessen/.test(topic);\n}\n\nfunction menuLines(predicate) {\n  return menu\n    .filter(predicate)\n    .slice(0, 20)\n    .map((item) => '- ' + item.name + ' (' + Number(item.preis_eur || 0).toFixed(2) + ' EUR)')\n    .join('\\n');\n}\n\nfunction infoReply(topic) {\n  const answer = text(parsed.antwort);\n  if (/speisekarte|preise|groessen/.test(topic) || shouldSendMenuPdf(topic)) {\n    return [\n      'Ich schicke dir die Speisekarte als PDF mit.',\n      '',\n      'Wenn du bestellen moechtest, sende mir einfach Artikel, Menge und Lieferadresse.'\n    ].join('\\n');\n  }\n  if (/liefer/.test(topic)) {\n    return [\n      'Wir liefern ab Blenkerstr. 39, 76187 Karlsruhe.',\n      'Sende mir fuer eine Bestellung bitte Artikel und Lieferadresse.'\n    ].join('\\n');\n  }\n  if (/allergen|gluten|vegan|vegetarisch/.test(topic + ' ' + rawText)) {\n    const lines = menuLines((item) => /gluten|vegan|vegetarisch/i.test(text(item.beschreibung)));\n    return lines || 'Dazu habe ich in den aktuellen Speisekarten-Daten keine gesicherten Informationen.';\n  }\n  return answer || 'Ich kann dir bei Speisekarte, Preisen, Lieferung und Bestellungen helfen.';\n}\n\nfunction normalizeAddress(value) {\n  let address = text(value);\n  if (!address) return '';\n\n  address = address.replace(/\\b(\\d)\\s+(\\d)\\s+(\\d)\\s+(\\d)\\s+(\\d)\\b/g, '$1$2$3$4$5');\n  address = address.replace(/\\b(eckenstein|eckestein|eckstein)\\b/gi, 'Eggenstein');\n  address = address.replace(/\\b(leopardshafen|leopartshafen|leopolshafen)\\b/gi, 'Leopoldshafen');\n  address = address.replace(/\\bEggenstein[\\s,-]+Leopoldshafen\\b/gi, 'Eggenstein-Leopoldshafen');\n  address = address.replace(/\\b76344\\s+Eggenstein(?:-| )Leopoldshafen\\b/gi, '76344 Eggenstein-Leopoldshafen');\n  address = address.replace(/\\s+/g, ' ').trim();\n\n  return address;\n}\n\nconst intent = hasParsedPositions || parsedIntent === 'order'\n  ? 'order'\n  : (parsedIntent === 'info' || looksLikeInfoQuestion() ? 'info' : 'order');\nconst topic = text(parsed.info_topic).toLowerCase();\n\nconst createdAt = new Date().toISOString();\nconst customerName = text(parsed.kunde_name) ||\n  [ctx.customer_first_name, ctx.customer_last_name].filter(Boolean).join(' ').trim() ||\n  'Telegram Kunde';\n\nif (intent === 'info') {\n  return [{\n    json: {\n      bestell_id: '',\n      chat_id: ctx.chat_id,\n      kunde_name: customerName,\n      telefon: '',\n      adresse: '',\n      positionen: [],\n      artikel_text: '',\n      gesamtpreis_eur: 0,\n      entfernung_km: 0,\n      route_minuten: 0,\n      offene_bestellungen: Number(ctx.open_orders_count || 0),\n      wartezeit_min: 0,\n      wartezeit_text: '',\n      status: 'info',\n      complete: false,\n      save_order: false,\n      send_slack: false,\n      should_send_menu_pdf: shouldSendMenuPdf(topic),\n      raw_text: ctx.order_text,\n      input_type: ctx.input_type,\n      telegram_reply: infoReply(topic),\n      slack_text: '',\n      llm_raw: rawContent.slice(0, 1000),\n      created_at: createdAt\n    }\n  }];\n}\n\nconst resolved = [];\nconst missing = Array.isArray(parsed.fehlende_infos)\n  ? parsed.fehlende_infos\n      .map(text)\n      .filter(Boolean)\n      .filter((entry) => !/^(telefon|telefonnummer|rufnummer|kunde|kundenname|kunde_name|name)$/i.test(entry))\n  : [];\nlet total = 0;\nlet maxPrep = 12;\nlet itemCount = 0;\n\nfor (const position of parsedPositions) {\n  const id = text(position.artikel_id).toUpperCase();\n  const menuItem = menuById.get(id);\n  const qty = Math.max(1, Math.round(Number(position.menge || 1)));\n  if (!menuItem) {\n    missing.push('Artikel nicht sicher erkannt: ' + (id || 'unbekannt'));\n    continue;\n  }\n  if (menuItem.verfuegbar === false || String(menuItem.verfuegbar).toLowerCase() === 'false') {\n    missing.push('Artikel ist aktuell nicht verfuegbar: ' + menuItem.name);\n    continue;\n  }\n  const lineTotal = Number(menuItem.preis_eur || 0) * qty;\n  total += lineTotal;\n  itemCount += qty;\n  maxPrep = Math.max(maxPrep, Number(menuItem.vorbereitung_min) || 12);\n  resolved.push({\n    artikel_id: id,\n    name: menuItem.name,\n    menge: qty,\n    einzelpreis_eur: Number(menuItem.preis_eur || 0),\n    gesamtpreis_eur: Number(lineTotal.toFixed(2)),\n    sonderwunsch: text(position.sonderwunsch)\n  });\n}\n\nconst address = normalizeAddress(parsed.adresse);\nif (!address) missing.push('Lieferadresse');\nif (resolved.length === 0) missing.push('Bestellpositionen');\n\nconst uniqueMissing = Array.from(new Set(missing));\nconst openOrders = Number(ctx.open_orders_count || 0);\nconst effectiveOpenOrders = Math.min(Math.max(openOrders, 0), 4);\nconst deliveryBuffer = address ? 25 : 0;\nconst loadSurcharge = effectiveOpenOrders * 5;\nconst extraItemSurcharge = Math.max(0, itemCount - 3) * 2;\nconst deliveryMinimum = address ? 60 : 20;\nconst rawWaitMinutes = maxPrep + deliveryBuffer + loadSurcharge + extraItemSurcharge;\nconst waitMinutes = Math.min(90, Math.max(deliveryMinimum, Math.round(rawWaitMinutes / 5) * 5));\nconst waitRange = waitMinutes + '-' + (waitMinutes + 10);\nconst complete = uniqueMissing.length === 0;\nconst status = complete ? 'offen' : 'unvollstaendig';\nconst bestellId = 'LD-' + createdAt.replace(/[-:.TZ]/g, '').slice(0, 14);\nconst itemLines = resolved.map((item) => item.menge + 'x ' + item.name + (item.sonderwunsch ? ' (' + item.sonderwunsch + ')' : ''));\n\nconst telegramReply = complete\n  ? [\n      'Danke, deine Bestellung ist eingegangen.',\n      '',\n      'Bestellnummer: ' + bestellId,\n      itemLines.join('\\n'),\n      '',\n      'Gesamtpreis: ' + total.toFixed(2) + ' EUR',\n      'Lieferadresse: ' + address,\n      'Voraussichtliche Wartezeit: ca. ' + waitRange + ' Minuten'\n    ].join('\\n')\n  : [\n      'Danke, ich habe deine Bestellung teilweise erkannt.',\n      '',\n      resolved.length ? 'Erkannt:\\n' + itemLines.join('\\n') : 'Erkannte Artikel: keine sicheren Treffer',\n      '',\n      'Mir fehlt noch:',\n      ...uniqueMissing.map((entry) => '- ' + entry),\n      '',\n      'Bitte sende die fehlenden Angaben als Text oder Sprachnachricht.'\n    ].join('\\n');\n\nconst mapQuery = encodeURIComponent(address);\nconst slackText = [\n  '*Neue Steinofen-Bestellung*',\n  '',\n  '*Bestellnummer:* ' + bestellId,\n  '*Kunde:* ' + customerName,\n  text(parsed.telefon) ? '*Telefon:* ' + text(parsed.telefon) : '',\n  '',\n  '*Bestellung:*',\n  itemLines.map((line) => '- ' + line).join('\\n'),\n  '',\n  '*Gesamtpreis:* ' + total.toFixed(2) + ' EUR',\n  '*Adresse:* ' + address,\n  mapQuery ? 'Google Maps: https://www.google.com/maps/search/?api=1&query=' + mapQuery : '',\n  '*Wartezeit:* ca. ' + waitRange + ' Minuten',\n  '',\n  '*Originalnachricht:*',\n  text(ctx.order_text) || 'Nicht vorhanden'\n].filter(Boolean).join('\\n');\n\nreturn [{\n  json: {\n    bestell_id: bestellId,\n    chat_id: ctx.chat_id,\n    kunde_name: customerName,\n    telefon: text(parsed.telefon),\n    adresse: address,\n    positionen: resolved,\n    artikel_text: itemLines.join('; '),\n    gesamtpreis_eur: Number(total.toFixed(2)),\n    entfernung_km: 0,\n    route_minuten: 0,\n    offene_bestellungen: openOrders,\n    wartezeit_min: waitMinutes,\n    wartezeit_text: waitRange + ' Minuten',\n    status,\n    complete,\n    save_order: Boolean(resolved.length || address),\n    send_slack: complete,\n    missing: uniqueMissing,\n    raw_text: ctx.order_text,\n    input_type: ctx.input_type,\n    telegram_reply: telegramReply,\n    should_send_menu_pdf: false,\n    slack_text: slackText,\n    llm_raw: rawContent.slice(0, 1000),\n    created_at: createdAt\n  }\n}];"
+      },
+      "id": "reply-build",
+      "name": "Bestellantwort bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3240,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-save-order-condition",
+              "leftValue": "={{ String($json.save_order) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-save-order",
+      "name": "Bestellung speichern?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3500,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "lieferdienst_bestellungen",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "bestell_id": "={{ $json.bestell_id }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "kunde_name": "={{ $json.kunde_name }}",
+            "adresse": "={{ $json.adresse }}",
+            "artikel_text": "={{ $json.artikel_text }}",
+            "gesamtpreis_eur": "={{ $json.gesamtpreis_eur }}",
+            "entfernung_km": "={{ $json.entfernung_km }}",
+            "wartezeit_min": "={{ $json.wartezeit_min }}",
+            "status": "={{ $json.status }}",
+            "created_at": "={{ $json.created_at }}",
+            "raw_text": "={{ $json.raw_text }}"
+          },
+          "schema": [
+            {
+              "id": "bestell_id",
+              "displayName": "bestell_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "kunde_name",
+              "displayName": "kunde_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "adresse",
+              "displayName": "adresse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "artikel_text",
+              "displayName": "artikel_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gesamtpreis_eur",
+              "displayName": "gesamtpreis_eur",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entfernung_km",
+              "displayName": "entfernung_km",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "wartezeit_min",
+              "displayName": "wartezeit_min",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "date",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "raw_text",
+              "displayName": "raw_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "insert-order",
+      "name": "Bestellung speichern",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3760,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-slack-condition",
+              "leftValue": "={{ String($json.send_slack && Boolean($env.SLACK_STEINOFENBOT_WEBHOOK_URL || $env.SLACK_ORDERS_WEBHOOK_URL)) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-slack",
+      "name": "Slack senden?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3500,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_STEINOFENBOT_WEBHOOK_URL || $env.SLACK_ORDERS_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $json.slack_text, \"channel\": $env.SLACK_ORDERS_CHANNEL || \"#test-channel-steinofen-bot\" } }}",
+        "options": {}
+      },
+      "id": "slack-send",
+      "name": "Slack Bestellung senden",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3760,
+        420
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.telegram_reply }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-reply",
+      "name": "Telegram Antwort senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3500,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-menu-pdf-condition",
+              "leftValue": "={{ String($('Bestellantwort bauen').first().json.should_send_menu_pdf) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-menu-pdf",
+      "name": "Speisekarte PDF senden?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3760,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendDocument",
+        "chatId": "={{ $('Bestellantwort bauen').first().json.chat_id }}",
+        "binaryData": false,
+        "file": "={{ $env.MENU_PDF_URL || 'https://weur-cdn.speisekarte.menu/storage/media/companies_menu_pdf/114411922/steinofen-pizzeria-karlsruhe-speisekarte.pdf' }}",
+        "additionalFields": {
+          "caption": "Hier ist die Speisekarte als PDF. Preise und Verfuegbarkeit koennen sich aendern."
+        }
+      },
+      "id": "telegram-menu-pdf",
+      "name": "Telegram Speisekarte PDF senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4020,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Telegram Nachricht normalisieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Nachricht normalisieren": {
+      "main": [
+        [
+          {
+            "node": "Voice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice?": {
+      "main": [
+        [
+          {
+            "node": "Telegram Voice laden",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text als Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Voice laden": {
+      "main": [
+        [
+          {
+            "node": "Voice Audio vorbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice Audio vorbereiten": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter Voice transkribieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Voice transkribieren": {
+      "main": [
+        [
+          {
+            "node": "Voice als Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sprachfehler Antwort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice als Text": {
+      "main": [
+        [
+          {
+            "node": "Nachricht vereinheitlichen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text als Text": {
+      "main": [
+        [
+          {
+            "node": "Nachricht vereinheitlichen",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Nachricht vereinheitlichen": {
+      "main": [
+        [
+          {
+            "node": "Speisekarte laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Speisekarte laden": {
+      "main": [
+        [
+          {
+            "node": "Bestellungen laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bestellungen laden": {
+      "main": [
+        [
+          {
+            "node": "Bestellassistent Prompt bauen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bestellassistent Prompt bauen": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter Bestellung verstehen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Bestellung verstehen": {
+      "main": [
+        [
+          {
+            "node": "Bestellantwort bauen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bestellantwort bauen": {
+      "main": [
+        [
+          {
+            "node": "Bestellung speichern?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack senden?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Antwort senden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bestellung speichern?": {
+      "main": [
+        [
+          {
+            "node": "Bestellung speichern",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Slack senden?": {
+      "main": [
+        [
+          {
+            "node": "Slack Bestellung senden",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Telegram Antwort senden": {
+      "main": [
+        [
+          {
+            "node": "Speisekarte PDF senden?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Speisekarte PDF senden?": {
+      "main": [
+        [
+          {
+            "node": "Telegram Speisekarte PDF senden",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "telegram-lieferdienst-clean-v1"
+}

@@ -1,0 +1,181 @@
+{
+  "name": "Vapi HR Bewerberprotokoll an Slack (Prod v3)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Vapi HR Workflow (Prod v3)\n\n- Webhook antwortet sofort (onReceived)\n- Filtert NUR end-of-call-report (kein Spam, keine LLM-Kosten fuer Zwischen-Events)\n- Robustes JSON-Parsing (entfernt Codebloecke)\n- Slack & OpenRouter via env\n\nVapi-URL: https://<N8N_HOST>/webhook/vapi-call-ended",
+        "height": 340,
+        "width": 520
+      },
+      "id": "sticky-1",
+      "name": "Workflow Hinweis",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-call-ended",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Vapi Call Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        420
+      ],
+      "webhookId": "vapi-call-ended"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawPayload = $json;\nconst payload = typeof rawPayload.body === 'string'\n  ? JSON.parse(rawPayload.body || '{}')\n  : (rawPayload.body ?? rawPayload);\n\nfunction pick(...values) {\n  return values.find(v => v !== undefined && v !== null && v !== '');\n}\n\nfunction transcriptToText(value) {\n  if (!value) return '';\n  if (typeof value === 'string') return value;\n  if (Array.isArray(value)) {\n    return value.map(entry => {\n      if (typeof entry === 'string') return entry;\n      const speaker = pick(entry.role, entry.speaker, entry.name, 'Sprecher');\n      const text = pick(entry.text, entry.message, entry.transcript, entry.content, '');\n      return speaker + ': ' + text;\n    }).join('\\n');\n  }\n  return JSON.stringify(value, null, 2);\n}\n\nconst message = payload.message ?? payload;\nconst __evtType = message.type ?? payload.type;\nif (__evtType && __evtType !== 'end-of-call-report') { return []; }\nconst call = message.call ?? payload.call ?? {};\nconst analysis = message.analysis ?? payload.analysis ?? call.analysis ?? {};\nconst structured = analysis.structuredData ?? payload.structuredData ?? {};\nconst customer = call.customer ?? payload.customer ?? {};\n\nconst transcript = transcriptToText(pick(\n  message.transcript,\n  payload.transcript,\n  analysis.transcript,\n  call.transcript,\n  message.artifact?.transcript,\n  message.artifact?.messages,\n  payload.messages,\n  payload.recording?.transcript\n));\n\nconst candidateName = pick(\n  structured.candidate_name, structured.candidateName, structured.kandidat,\n  structured.name, customer.name, payload.candidate_name, 'Nicht genannt'\n);\n\nconst role = pick(\n  structured.role, structured.rolle, structured.position,\n  payload.role, payload.rolle, 'Nicht genannt'\n);\n\nconst callId = pick(call.id, message.callId, payload.callId, 'unbekannt');\nconst callTime = pick(call.endedAt, call.ended_at, message.endedAt, new Date().toISOString());\n\nconst systemPrompt = [\n  'Du bist ein erfahrener HR-Interview-Analyst. Analysiere das Gesprächstranskript eines Bewerber-Erstgesprächs.',\n  '',\n  'WICHTIGE REGELN:',\n  '- Bewerte AUSSCHLIESSLICH auf Basis des Transkripts. Keine Spekulationen oder Ergänzungen.',\n  '- Erfinde KEINE Informationen. Fehlende Angaben IMMER als \"Nicht genannt\" markieren.',\n  '- Antworte NUR mit validem JSON ohne Markdown-Codeblöcke oder erklärende Texte.',\n  '- Scores: 1=völlig ungeeignet, 5=durchschnittlich, 8=gut geeignet, 10=ausgezeichnet.',\n  '- Empfehlung: weiterführen (Score 8-10) | prüfen (Score 5-7) | ablehnen (Score 1-4).',\n  '',\n  'Gib das Ergebnis EXAKT in diesem JSON-Format zurück (alle Felder erforderlich):',\n  '{',\n  '  \"kandidat_name\": \"Name des Kandidaten oder Nicht genannt\",',\n  '  \"zielrolle\": \"Beworbene Stelle oder Nicht genannt\",',\n  '  \"kurzzusammenfassung\": \"2-3 prägnante Sätze zum Gesamteindruck\",',\n  '  \"motivation\": \"Was der Kandidat zur Motivation und Wechselwunsch sagte, oder Nicht genannt\",',\n  '  \"fachliche_eignung\": \"Konkrete Einschätzung der Qualifikationen auf Basis des Transkripts\",',\n  '  \"kommunikation\": \"Einschätzung: klar/unklar, präzise/vage, sicher/unsicher, professionell\",',\n  '  \"verfuegbarkeit\": \"Genannter Starttermin oder Kündigungsfrist, oder Nicht genannt\",',\n  '  \"gehaltsvorstellung\": \"Genannte Gehaltsvorstellung in Euro, oder Nicht genannt\",',\n  '  \"staerken\": [\"Konkrete belegbare Stärke 1\", \"Konkrete belegbare Stärke 2\"],',\n  '  \"risiken\": [\"Konkretes Risiko oder Red Flag, oder Nicht erkannt\"],',\n  '  \"fehlende_informationen\": [\"Fehlende wichtige Info 1\"],',\n  '  \"empfehlung\": \"weiterführen\",',\n  '  \"gesamt_score\": 7,',\n  '  \"score_begruendung\": \"Sachliche Begründung, warum dieser Score vergeben wurde\"',\n  '}'\n].join('\\n');\n\nconst userMessage = [\n  'Kandidat (aus Metadaten): ' + candidateName,\n  'Zielrolle (aus Metadaten): ' + role,\n  '',\n  'Transkript:',\n  transcript || 'Kein Transkript vorhanden. Alle inhaltlichen Felder mit \"Nicht genannt\" befüllen, gesamt_score auf 1 setzen, empfehlung auf \"prüfen\".'\n].join('\\n');\n\nreturn [{\n  json: {\n    transcript,\n    candidate_name: candidateName,\n    role,\n    call_id: callId,\n    call_time: callTime,\n    system_prompt: systemPrompt,\n    user_message: userMessage,\n    has_transcript: transcript.length > 50\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Payload extrahieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENROUTER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://your-domain.de"
+            },
+            {
+              "name": "X-Title",
+              "value": "Vapi HR Agent"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"meta-llama/llama-3.3-70b-instruct\", \"temperature\": 0.1, \"response_format\": { \"type\": \"json_object\" }, \"messages\": [{ \"role\": \"system\", \"content\": $json.system_prompt }, { \"role\": \"user\", \"content\": $json.user_message }] } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-1",
+      "name": "OpenRouter LLM Analyse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Payload extrahieren').first().json;\nconst llmResponse = $json;\n\nconst rawContent = llmResponse?.choices?.[0]?.message?.content ?? '';\n\nlet parsed = {};\ntry {\n  const __clean = rawContent.replace(/```json/gi, '').replace(/```/g, '').trim();\n  parsed = JSON.parse(__clean.slice(__clean.indexOf('{'), __clean.lastIndexOf('}') + 1));\n} catch (e) {\n  parsed = {\n    kurzzusammenfassung: 'LLM-Antwort konnte nicht verarbeitet werden.',\n    gesamt_score: 1,\n    empfehlung: 'prüfen',\n    fehlende_informationen: ['LLM-Parsing-Fehler: ' + String(e.message).slice(0, 100)],\n    staerken: [],\n    risiken: ['LLM-Antwort nicht verarbeitbar – bitte manuell prüfen'],\n    score_begruendung: 'Fehler bei der automatischen Auswertung'\n  };\n}\n\nfunction val(field, fallback) {\n  const v = parsed[field];\n  if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);\n  return fallback || 'Nicht genannt';\n}\n\nfunction arr(field) {\n  const v = parsed[field];\n  if (!v) return [];\n  if (Array.isArray(v)) return v.filter(Boolean).map(String);\n  if (typeof v === 'string') {\n    return v.split('\\n').map(s => s.replace(/^[-•*]\\s*/, '').trim()).filter(Boolean);\n  }\n  return [String(v)];\n}\n\nconst candidateName = val('kandidat_name', prev.candidate_name);\nconst role = val('zielrolle', prev.role);\nconst score = Math.max(1, Math.min(10, Math.round(Number(parsed.gesamt_score) || 5)));\n\nconst empfehlung = (() => {\n  const e = val('empfehlung').toLowerCase();\n  if (e.includes('weiter') || e.includes('pass') || e.includes('yes')) return 'weiterführen ✅';\n  if (e.includes('ablehn') || e.includes('reject') || e.includes('nein') || e.includes('no')) return 'ablehnen ❌';\n  return 'prüfen ⚠️';\n})();\n\nconst staerken = arr('staerken');\nconst risiken = arr('risiken');\nconst fehlende = arr('fehlende_informationen');\nconst scoreEmoji = score >= 8 ? '🟢' : score >= 6 ? '🟡' : '🔴';\n\nconst slackLines = [\n  '*Neues Bewerbergespräch ausgewertet*',\n  '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',\n  '*Kandidat:* ' + candidateName,\n  '*Zielrolle:* ' + role,\n  '*Zeitpunkt:* ' + prev.call_time,\n  '*Call-ID:* ' + prev.call_id,\n  '',\n  '*Empfehlung:* ' + empfehlung,\n  '*Score:* ' + scoreEmoji + ' ' + score + '/10',\n  '',\n  '*Kurzfazit:*',\n  val('kurzzusammenfassung'),\n  '',\n  '*Motivation:*',\n  val('motivation'),\n  '',\n  '*Fachliche Eignung:*',\n  val('fachliche_eignung'),\n  '',\n  '*Kommunikationsstil:*',\n  val('kommunikation'),\n  '',\n  '*Verfügbarkeit:* ' + val('verfuegbarkeit'),\n  '*Gehaltsvorstellung:* ' + val('gehaltsvorstellung'),\n  '',\n  '*Stärken:*'\n];\n\nstaerken.length\n  ? staerken.forEach(s => slackLines.push('• ' + s))\n  : slackLines.push('• Keine klaren Stärken erkannt');\n\nslackLines.push('');\nslackLines.push('*Risiken / Red Flags:*');\nrisiken.length\n  ? risiken.forEach(r => slackLines.push('• ' + r))\n  : slackLines.push('• Keine Risiken erkannt');\n\nslackLines.push('');\nslackLines.push('*Score-Begründung:*');\nslackLines.push(val('score_begruendung'));\n\nif (fehlende.length > 0) {\n  slackLines.push('');\n  slackLines.push('*Fehlende Informationen:*');\n  fehlende.forEach(f => slackLines.push('• ' + f));\n} else {\n  slackLines.push('');\n  slackLines.push('✓ Alle Kerninfos vorhanden');\n}\n\nslackLines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');\nslackLines.push('_KI-Vorauswertung (Llama 3.3 70B Instruct) – Bitte von HR validieren_');\n\nreturn [{\n  json: {\n    candidate_name: candidateName,\n    role,\n    recommendation: empfehlung,\n    score,\n    summary: val('kurzzusammenfassung'),\n    motivation: val('motivation'),\n    fachliche_eignung: val('fachliche_eignung'),\n    kommunikation: val('kommunikation'),\n    verfuegbarkeit: val('verfuegbarkeit'),\n    gehaltsvorstellung: val('gehaltsvorstellung'),\n    staerken,\n    risiken,\n    fehlende_informationen: fehlende,\n    score_begruendung: val('score_begruendung'),\n    transcript: prev.transcript,\n    call_id: prev.call_id,\n    slack_text: slackLines.join('\\n'),\n    llm_raw: rawContent.slice(0, 500)\n  }\n}];"
+      },
+      "id": "code-2",
+      "name": "Protokoll aufbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $json.slack_text } }}",
+        "options": {}
+      },
+      "id": "http-2",
+      "name": "Slack Nachricht senden",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Vapi Call Webhook": {
+      "main": [
+        [
+          {
+            "node": "Payload extrahieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload extrahieren": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter LLM Analyse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter LLM Analyse": {
+      "main": [
+        [
+          {
+            "node": "Protokoll aufbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Protokoll aufbereiten": {
+      "main": [
+        [
+          {
+            "node": "Slack Nachricht senden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2a3b4c5d-6e7f-8a9b-0c1d-2e3f4a5b6c7d",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "VapiHrSlackProd",
+  "tags": []
+}
