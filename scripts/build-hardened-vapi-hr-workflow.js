@@ -157,7 +157,7 @@ const windowMinutes = clampNumber(env('VAPI_RATE_LIMIT_WINDOW_MINUTES'), 60, 5, 
 const maxWindowCalls = clampNumber(env('VAPI_RATE_LIMIT_MAX_CALLS_PER_WINDOW'), 3, 1, 100);
 const maxDayCalls = clampNumber(env('VAPI_RATE_LIMIT_MAX_CALLS_PER_DAY'), 8, 1, 500);
 const blockDays = clampNumber(env('VAPI_RATE_LIMIT_BLOCK_DAYS'), 7, 1, 365);
-const assistantId = env('VAPI_HR_ASSISTANT_ID', '0464f5c2-4927-45b3-9429-e8bc0d6d1323');
+const assistantId = env('VAPI_HR_ASSISTANT_ID', 'YOUR_VAPI_ASSISTANT_ID');
 const blockedCallers = new Set(parseList(env('VAPI_BLOCKED_CALLERS', '')));
 
 const windowMs = windowMinutes * 60 * 1000;
